@@ -8,7 +8,18 @@
 1. [Using](#using)
 2. [Basic Knowledge related to Web Communication](#basic-knowledge-related-to-web-communication)
 3. [Concept of JWT](#concept-of-jwt)
-4. [Licence](#license)
+4. [Http Basic과 Bearer](#http-basic과-bearer)
+5. [Security Filter Chain보다 빠른 필터](#security-filter-chain보다-빠른-필터)
+6. [프로젝트와 관련된 Security Filter](#프로젝트와-관련된-security-filter)
+7. [Licence](#license)
+
+-----------------
+
+## Using
+1. **BackEnd** - Java(JDK 1.8), MySQL(v8.0.25), Spring Boot(2.3.12.RELEASE), JPA
+2. **Library&API** - Spring Security, Lombok, **java JWT**
+    - JWT Library : JWT 토큰을 생성해주는 라이브러리
+3. **IDE** - STS (Spring Tool Suite 3.9.12.RELEASE), MySQL Workbench 8.0 CE, Postman
 
 -----------------
 
@@ -118,6 +129,55 @@
     5. **서버에서 JWT을 받으면** Header+Payload+Secret을 **암호화 해본다. 그 결과를 전송 받은 JWT와 비교해서 같으면 인증이 되었다고 판단한다**
     6. **서버 키만 알고 있으면 Load Balancing에 의해 다른 서버에 들어가도 새로운 JWT 토큰을 생성하지않고, JWT 비교를 통해 인증이 가능해진다.**
     
+-----------------
+
+## Http Basic과 Bearer
+1. **Http Basic 방식**
+    - **요청 Headers 안에 있는 Authorization 에 ID, PW를 담아서 전송**
+    - 서버 확장성은 좋으나 ID, PW 가 노출될 가능성이 있다.
+2. **Bearer 방식**
+    - **Authorization 에 Token을 담아서 전송**
+    - Token 이 노출될 가능성은 있으나 ID, PW 가 노출되지는 않는다.
+    - Token 은 ID, PW 를 기반으로 만들어진다. 유효 시간이 존재한다.
+    - 이때 사용하는 것이 JWT 토큰
+    
+-----------------
+
+## Security Filter Chain보다 빠른 필터
+- Security Filter Chain은 우리가 추가한 필터(MyFilter1, MyFilter2)보다 먼저 동작한다.
+- 우리의 필터를 먼저 동작하게 하기 위해서는 **addFilterBefore** 를 사용한다.
+    ```java
+        http.addFilterBefore(new MyFilter3(), SecurityContextPersistenceFilter.class);
+    ```
+- **Security Filter Chain의 첫번째 필터** : **SecurityContextPersistenceFilter**
+- MyFilter3는 Security Filter Chain 보다 먼저 실행된다.
+
+-----------------
+
+## 프로젝트와 관련된 Security Filter
+1. **BasicAuthenticationFilter** : **권한이나 인증이 필요한 특정 주소를 요청했을 때 이 필터에 걸린다.** 권한이나 인증이 필요한 주소가 아니라면 이 필터를 무시한다.
+    ```java
+    public class JwtAuthorizationFilter extends BasicAuthenticationFilter{
+        public JwtAuthorizationFilter (AuthenticationManager authenticationManager, UserRepository userRepository){ }
+
+        protected void doFilterInternal (HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws IOException, ServletException{ }
+    }
+    ```
+2. **UsernamePasswordAuthenticationFilter** : /login 요청해서 username, password를 전송하면 (post) UsernamePasswordAuthenticationFilter가 동작한다.
+    ```java
+    public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter
+    ```
+    1. **attemptAuthentication 함수** : /login 요청을 하면 로그인 시도를 위해서 실행되는 함수
+        ```java
+        public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
+			throws AuthenticationException
+        ```
+    2. **successfulAuthentication 함수** : attemptAuthentication 실행 후 인증이 정상적으로 되었으면 실행
+        ```java
+        protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+			Authentication authResult) throws IOException, ServletException
+        ```
 -----------------
 
 ## License
